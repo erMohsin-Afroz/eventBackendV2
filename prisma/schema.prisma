@@ -1,0 +1,466 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Users
+model User {
+  id               String    @id
+  fullName         String    @map("full_name")
+  email            String    @unique
+  mobileNumber     String?   @map("mobile_number")
+  passwordHash     String    @map("password_hash")
+  role             String
+  designation      String?
+  organization     String?
+  profileImagePath String?   @map("profile_image_path")
+  about            String?
+  interests        String?
+  createdAt        DateTime  @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+  isActive         Boolean   @default(true) @map("is_active")
+  tenantId         String    @default("default") @map("tenant_id")
+
+  organiserProfiles OrganiserProfile[]
+  organisedEvents   Event[]               @relation("EventOrganiser")
+  registrations     Registration[]
+  checkIns          CheckIn[]
+  feedback          FeedbackSubmission[]
+  favorites         Favorite[]
+  supportInquiries  EventSupportInquiry[]
+  quizAttempts      QuizAttempt[]
+
+  @@index([tenantId], map: "idx_users_tenant")
+  @@map("users")
+}
+
+// 2. Organiser Profiles
+model OrganiserProfile {
+  id               String    @id
+  userId           String    @map("user_id")
+  organisationName String?   @map("organisation_name")
+  organiserType    String?   @map("organiser_type")
+  designation      String?
+  description      String?
+  createdAt        DateTime  @map("created_at")
+  updatedAt        DateTime? @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("organiser_profiles")
+}
+
+// 3. Events
+model Event {
+  id                   String    @id
+  organiserId          String    @map("organiser_id")
+  organiserName        String    @default("Event Organiser") @map("organiser_name")
+  eventName            String    @map("event_name")
+  description          String
+  category             String
+  bannerPath           String?   @map("banner_path")
+  eventFormat          String    @map("event_format")
+  startDate            DateTime  @map("start_date")
+  endDate              DateTime  @map("end_date")
+  startTime            String?   @map("start_time")
+  endTime              String?   @map("end_time")
+  venueName            String    @map("venue_name")
+  address              String?
+  city                 String?
+  country              String?
+  onlineMeetingUrl     String?   @map("online_meeting_url")
+  platformName         String?   @map("platform_name")
+  visibility           String    @default("public")
+  accessCode           String?   @map("access_code")
+  accessCodeHash       String?   @map("access_code_hash")
+  registrationDeadline DateTime? @map("registration_deadline")
+  maximumCapacity      Int       @default(500) @map("maximum_capacity")
+  attendeeCount        Int       @default(0) @map("attendee_count")
+  registrationOpen     Boolean   @default(true) @map("registration_open")
+  approvalRequired     Boolean   @default(false) @map("approval_required")
+  waitlistEnabled      Boolean   @default(false) @map("waitlist_enabled")
+  eventStatus          String    @default("published") @map("event_status")
+  tenantId             String    @default("default") @map("tenant_id")
+  createdAt            DateTime  @map("created_at")
+  updatedAt            DateTime? @map("updated_at")
+
+  organiser        User                   @relation("EventOrganiser", fields: [organiserId], references: [id], onDelete: Cascade)
+  agendaDays       AgendaDay[]
+  sessions         Session[]
+  locations        Location[]
+  speakers         Speaker[]
+  registrations    Registration[]
+  checkIns         CheckIn[]
+  invitations      Invitation[]
+  feedback         FeedbackSubmission[]
+  faqs             Faq[]
+  notifications    Notification[]
+  helpDeskContacts EventHelpDeskContact[]
+  supportInquiries EventSupportInquiry[]
+  quizzes          Quiz[]
+
+  @@index([tenantId], map: "idx_events_tenant")
+  @@map("events")
+}
+
+// 4. Agenda Days
+model AgendaDay {
+  id         String   @id
+  eventId    String   @map("event_id")
+  title      String
+  agendaDate DateTime @map("agenda_date")
+  sortOrder  Int      @default(0) @map("sort_order")
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@map("agenda_days")
+}
+
+// 5. Sessions
+model Session {
+  id           String    @id
+  eventId      String    @map("event_id")
+  agendaDayId  String?   @map("agenda_day_id")
+  title        String
+  description  String?
+  activityType String    @default("Keynote") @map("activity_type")
+  speakerName  String?   @map("speaker_name")
+  locationName String?   @map("location_name")
+  startTime    String    @map("start_time")
+  endTime      String    @map("end_time")
+  sessionDate  DateTime  @map("session_date")
+  isFavorite   Boolean   @default(false) @map("is_favorite")
+  createdAt    DateTime  @map("created_at")
+  updatedAt    DateTime? @map("updated_at")
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  agendaDay AgendaDay? @relation(fields: [agendaDayId], references: [id], onDelete: Cascade)
+  quizzes   Quiz[]
+
+  @@map("sessions")
+}
+
+// 6. Locations
+model Location {
+  id           String  @id
+  eventId      String  @map("event_id")
+  name         String
+  building     String?
+  floor        String?
+  roomNumber   String? @map("room_number")
+  capacity     Int?
+  description  String?
+  latitude     Float?
+  longitude    Float?
+  locationType String? @map("location_type")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("locations")
+}
+
+// 7. Speakers
+model Speaker {
+  id                 String    @id
+  eventId            String    @map("event_id")
+  name               String
+  designation        String?
+  organization       String?
+  biography          String?
+  profileImagePath   String?   @map("profile_image_path")
+  topic              String?
+  email              String?
+  contactInformation String?   @map("contact_information")
+  createdAt          DateTime? @map("created_at")
+  updatedAt          DateTime? @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId], map: "idx_speakers_event")
+  @@map("speakers")
+}
+
+// 8. Registrations
+model Registration {
+  id                 String    @id
+  eventId            String    @map("event_id")
+  attendeeId         String    @map("attendee_id")
+  eventTitle         String    @map("event_title")
+  attendeeName       String    @map("attendee_name")
+  attendeeEmail      String    @map("attendee_email")
+  qrToken            String    @unique @map("qr_token")
+  registrationStatus String    @default("confirmed") @map("registration_status")
+  approvalStatus     String    @default("approved") @map("approval_status")
+  isCheckedIn        Boolean   @default(false) @map("is_checked_in")
+  checkInTime        DateTime? @map("check_in_time")
+  registeredAt       DateTime  @map("registered_at")
+  cancellationDate   DateTime? @map("cancellation_date")
+  tenantId           String    @default("default") @map("tenant_id")
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee User     @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+  checkIn  CheckIn?
+
+  @@unique([eventId, attendeeId])
+  @@index([tenantId], map: "idx_registrations_tenant")
+  @@map("registrations")
+}
+
+// 9. Check-ins
+model CheckIn {
+  id             String   @id
+  eventId        String   @map("event_id")
+  registrationId String   @unique @map("registration_id")
+  attendeeId     String   @map("attendee_id")
+  checkInTime    DateTime @map("check_in_time")
+  checkedInBy    String   @map("checked_in_by")
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  attendee     User         @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  @@map("check_ins")
+}
+
+// 10. Invitations
+model Invitation {
+  id               String    @id
+  eventId          String    @map("event_id")
+  email            String
+  invitationCode   String    @map("invitation_code")
+  invitationStatus String    @default("sent") @map("invitation_status")
+  createdAt        DateTime  @map("created_at")
+  expiresAt        DateTime? @map("expires_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+// 11. Feedback Submissions
+model FeedbackSubmission {
+  id            String   @id
+  tenantId      String   @default("default") @map("tenant_id")
+  eventId       String   @map("event_id")
+  attendeeId    String   @map("attendee_id")
+  attendeeName  String   @map("attendee_name")
+  attendeeEmail String?  @map("attendee_email")
+  rating        Float
+  comments      String?
+  submittedAt   DateTime @map("submitted_at")
+
+  event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee User  @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, attendeeId], map: "idx_feedback_event_attendee")
+  @@index([tenantId], map: "idx_feedback_tenant")
+  @@map("feedback_submissions")
+}
+
+// 12. FAQs
+model Faq {
+  id        String    @id
+  eventId   String?   @map("event_id")
+  question  String
+  answer    String
+  category  String    @default("General")
+  sortOrder Int       @default(0) @map("sort_order")
+  status    String    @default("published")
+  createdAt DateTime? @map("created_at")
+  updatedAt DateTime? @map("updated_at")
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], map: "idx_faqs_event_status")
+  @@map("faqs")
+}
+
+// 13. Notifications
+model Notification {
+  id        String   @id
+  eventId   String?  @map("event_id")
+  title     String
+  message   String
+  timestamp DateTime
+  isRead    Boolean  @default(false) @map("is_read")
+  isPinned  Boolean  @default(false) @map("is_pinned")
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// 14. Favorites
+model Favorite {
+  id       String   @id
+  userId   String   @map("user_id")
+  itemType String   @map("item_type")
+  itemId   String   @map("item_id")
+  addedAt  DateTime @map("added_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemType, itemId])
+  @@map("favorites")
+}
+
+// 15. Event Help Desk Contacts
+model EventHelpDeskContact {
+  id             String    @id
+  eventId        String    @map("event_id")
+  title          String
+  description    String?
+  contactType    String    @default("General Support") @map("contact_type")
+  email          String?
+  phone          String?
+  location       String?
+  operatingHours String?   @map("operating_hours")
+  displayOrder   Int       @default(0) @map("display_order")
+  isEnabled      Boolean   @default(true) @map("is_enabled")
+  isPublished    Boolean   @default(true) @map("is_published")
+  createdAt      DateTime? @map("created_at")
+  updatedAt      DateTime? @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, isPublished, isEnabled], map: "idx_helpdesk_contacts_event")
+  @@map("event_help_desk_contacts")
+}
+
+// 16. Event Support Inquiries
+model EventSupportInquiry {
+  id                String    @id
+  eventId           String    @map("event_id")
+  attendeeId        String    @map("attendee_id")
+  attendeeName      String    @map("attendee_name")
+  attendeeEmail     String    @map("attendee_email")
+  subject           String
+  description       String
+  category          String    @default("General Inquiry")
+  status            String    @default("new")
+  priority          String    @default("normal")
+  organiserResponse String?   @map("organiser_response")
+  internalNote      String?   @map("internal_note")
+  submittedAt       DateTime  @map("submitted_at")
+  updatedAt         DateTime? @map("updated_at")
+  resolvedAt        DateTime? @map("resolved_at")
+
+  event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee User  @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status], map: "idx_support_inquiries_event")
+  @@index([attendeeId], map: "idx_support_inquiries_attendee")
+  @@map("event_support_inquiries")
+}
+
+// 17. Quizzes
+model Quiz {
+  id                 String    @id
+  tenantId           String    @default("default") @map("tenant_id")
+  eventId            String    @map("event_id")
+  agendaId           String?   @map("agenda_id")
+  title              String
+  description        String
+  instructions       String
+  quizType           String    @map("quiz_type")
+  difficulty         String
+  totalQuestions     Int       @default(0) @map("total_questions")
+  totalMarks         Int       @default(0) @map("total_marks")
+  passingPercentage  Float     @default(50.0) @map("passing_percentage")
+  durationMinutes    Int       @default(15) @map("duration_minutes")
+  maxAttempts        Int       @default(1) @map("max_attempts")
+  availabilityMode   String    @default("manual") @map("availability_mode")
+  startAt            DateTime? @map("start_at")
+  endAt              DateTime? @map("end_at")
+  status             String    @default("draft")
+  isEnabled          Boolean   @default(true) @map("is_enabled")
+  resultVisibility   String    @default("hidden_until_released") @map("result_visibility")
+  areAnswersReleased Boolean   @default(false) @map("are_answers_released")
+  createdBy          String    @map("created_by")
+  createdAt          DateTime  @map("created_at")
+  updatedAt          DateTime? @map("updated_at")
+
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  agenda    Session?       @relation(fields: [agendaId], references: [id], onDelete: SetNull)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([eventId, status], map: "idx_quizzes_event")
+  @@index([tenantId], map: "idx_quizzes_tenant")
+  @@index([eventId, agendaId], map: "idx_quizzes_agenda")
+  @@map("quizzes")
+}
+
+// 18. Quiz Questions
+model QuizQuestion {
+  id                String  @id
+  quizId            String  @map("quiz_id")
+  questionText      String  @map("question_text")
+  questionType      String  @map("question_type")
+  optionsJson       String  @map("options_json")
+  correctAnswerJson String  @map("correct_answer_json")
+  marks             Int     @default(1)
+  allowPartialMarks Boolean @default(false) @map("allow_partial_marks")
+  explanation       String?
+  imageUrl          String? @map("image_url")
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, sortOrder], map: "idx_quiz_questions_quiz")
+  @@map("quiz_questions")
+}
+
+// 19. Quiz Attempts
+model QuizAttempt {
+  id                  String    @id
+  tenantId            String    @default("default") @map("tenant_id")
+  eventId             String    @map("event_id")
+  quizId              String    @map("quiz_id")
+  agendaId            String?   @map("agenda_id")
+  attendeeId          String    @map("attendee_id")
+  attendeeName        String    @map("attendee_name")
+  attendeeEmail       String    @map("attendee_email")
+  attemptNumber       Int       @default(1) @map("attempt_number")
+  startedAt           DateTime  @map("started_at")
+  submittedAt         DateTime? @map("submitted_at")
+  status              String    @default("in_progress")
+  score               Float     @default(0.0)
+  totalMarks          Int       @default(0) @map("total_marks")
+  percentage          Float     @default(0.0)
+  correctAnswers      Int       @default(0) @map("correct_answers")
+  incorrectAnswers    Int       @default(0) @map("incorrect_answers")
+  unansweredQuestions Int       @default(0) @map("unanswered_questions")
+  timeTakenSeconds    Int       @default(0) @map("time_taken_seconds")
+  result              String    @default("pending")
+
+  quiz     Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  attendee User @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  answers QuizAnswer[]
+
+  @@index([quizId, attendeeId], map: "idx_quiz_attempts_quiz")
+  @@index([tenantId, eventId], map: "idx_quiz_attempts_tenant")
+  @@map("quiz_attempts")
+}
+
+// 20. Quiz Answers
+model QuizAnswer {
+  id                 String   @id
+  attemptId          String   @map("attempt_id")
+  questionId         String   @map("question_id")
+  selectedAnswerJson String   @map("selected_answer_json")
+  isCorrect          Boolean  @default(false) @map("is_correct")
+  marksObtained      Float    @default(0.0) @map("marks_obtained")
+  answeredAt         DateTime @map("answered_at")
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId], map: "idx_quiz_answers_attempt")
+  @@map("quiz_answers")
+}
